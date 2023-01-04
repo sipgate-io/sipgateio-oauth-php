@@ -1,0 +1,16 @@
+{
+  "name": "sipgate/sipgateio-oauth-php",
+  "description": "A demonstration of how to authenticate yourself on the sipgate platform using oauth.",
+  "minimum-stability": "stable",
+  "license": "unlicense",
+  "authors": [
+    {
+      "name": "sipgate.io Team",
+      "email": "io-team@sipgate.de"
+    }
+  ],
+  "require": {
+    "vlucas/phpdotenv": "^5.4",
+    "steampixel/simple-php-router": "^0.7.1"
+  }
+}

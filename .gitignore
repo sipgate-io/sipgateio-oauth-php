@@ -255,4 +255,6 @@ tags
 # Ignore all local history of files
 .history
 
-# End of https://www.gitignore.io/api/vim,git,macos,linux,intellij+all,visualstudiocode,node
+# End of https://www.gitignore.io/api/vim,git,macos,linux,intellij+all,visualstudiocode,node/vendor/
+
+vendor/*
