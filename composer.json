@@ -9,6 +9,11 @@
       "email": "io-team@sipgate.de"
     }
   ],
+  "autoload": {
+    "psr-4": {
+      "Sipgate\\Io\\Example\\OAuth\\": "src/"
+    }
+  },
   "require": {
     "vlucas/phpdotenv": "^5.4",
     "steampixel/simple-php-router": "^0.7.1"

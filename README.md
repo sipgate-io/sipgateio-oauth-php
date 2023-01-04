@@ -17,7 +17,8 @@ Applications that use the sipgate REST API on behalf of another user should use 
 
 ## Prerequisites
 - Node.js >= 10.15.3
-
+- PHP
+- Apache webserver ----> XAMPP
 
 ## Setup OAuth with sipgate
 In order to authenticate against the sipgate REST API via OAuth you first need to create a Client in the sipgate Web App.
