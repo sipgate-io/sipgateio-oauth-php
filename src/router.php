@@ -1,8 +1,6 @@
 <?php
 // Autoload files using composer
 require_once __DIR__ . '/../vendor/autoload.php';
-
-use Sipgate\Io\Example\OAuth\OAuthHandler;
 use Steampixel\Route;
 
 $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . "/..");
