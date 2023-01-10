@@ -1,6 +1,6 @@
 <img src="https://www.sipgatedesign.com/wp-content/uploads/wort-bildmarke_positiv_2x.jpg" alt="sipgate logo" title="sipgate" align="right" height="112" width="200"/>
 
-# sipgate.io Node.js OAuth example
+# sipgate.io PHP OAuth example
 To demonstrate how to authenticate against the sipgate REST API using the OAuth mechanism, 
 we make use of the `/authorization/userinfo` endpoint which provides information about the user. 
 
@@ -16,9 +16,8 @@ Applications that use the sipgate REST API on behalf of another user should use 
 
 
 ## Prerequisites
-- Node.js >= 10.15.3
 - PHP
-- Apache webserver ----> XAMPP
+- Composer
 
 ## Setup OAuth with sipgate
 In order to authenticate against the sipgate REST API via OAuth you first need to create a Client in the sipgate Web App.
@@ -57,139 +56,130 @@ The `redirect_uri` which we have previously used in the creation of our Client i
 ## Install dependencies
 Navigate to the project's root directory and run:
 ```bash
-$ npm install
+$ composer install
 ```
 
 
 ## Execution
 Run the application:
 ```bash
-$ npm start
+$ php -S localhost:8080 -t src/ src/router.php
 ```
 
 
 ## How It Works
 The main function of our application looks like this: 
 
-In the [index.js](./index.js) we first load the environment variables from [.env](./.env).
-```javascript
-require('dotenv').config()
-const config = process.env
+In the [router.php](./src/router.php) we first load the environment variables from [.env](./.env).
+```php
+$dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . "/..");
+$dotenv->load();
 ```
 
-We then generate a unique identifier `sessionState` for our authorization process so that we can match a server response to our request later. The authorization URI is composed from the properties previously loaded from the configuration file and printed to the console.
-```javascript
-const sessionState = uuidv4();
+We then generate a unique identifier `io_session_identifier` for our authorization process and save it in the browser as a cookie so that we can match a server response to our request later. The authorization URI is composed from the properties previously loaded from the configuration file and printed to the browser when navigating to `http://localhost:8080/`.
+```php
+if(!isset($_COOKIE['io_session_identifier'])) {
+    $io_session_identifier = uniqid();
+    setcookie('io_session_identifier', $io_session_identifier);
+} else {
+    $io_session_identifier = $_COOKIE['io_session_identifier'];
+}
 
-const params = {
-	client_id: config.clientId,
-	redirect_uri: config.redirectUri,
-	scope: config.oauthScope,
-	response_type: 'code',
-	state: sessionState,
-};
+// ...
 
-const queryString = querystring.stringify(params);
-const apiAuthUrl = `${config.authUrl}?${queryString}`;
+Route::add('/', function () {
 
-console.log(`Please open the following URL in your browser: \n${apiAuthUrl}`);
-```
+    $clientId = $_ENV['clientId'];
+    $redirectUri = $_ENV['redirectUri'];
+    $oauthScope = $_ENV['oauthScope'];
 
-Opening the link in your browser takes you to the sipgate login page where you need to confirm the scope that your Client is requesting access to before logging in with your sipgate credentials. You are then redirected to `http://localhost:8080/oauth` and our application's web server receives your request.
+    $params = [
+        "client_id" => $clientId,
+        "redirect_uri" => $redirectUri,
+        "scope" => $oauthScope,
+        "response_type" => "code",
+        "state" => $GLOBALS['io_session_identifier']
+    ];
 
-We create a webserver and pass the `handleRequest` function which should be used for processing the incoming requests.
-```javascript
-const server = http.createServer(handleRequest);
+    $queryString = http_build_query($params);
+    $apiAuthUrl = $_ENV['authUrl'] . "?" . $queryString;
 
-server.listen(config.port, () => {
-	console.log('Server listening on: http://localhost:%s', config.port);
+    print("Please open the following URL in your browser: \n" . "<a href='" . $apiAuthUrl . "'> Link </a>");
+
 });
 ```
 
-The function `handleRequest` handles all incoming HTTP requests.
-```javascript
-const handleRequest = async (request, response) => {
-	const requestUrl = url.parse(request.url);
+Pressing the link in your browser takes you to the sipgate login page where you need to confirm the scope that your Client is requesting access to before logging in with your sipgate credentials. You are then redirected to `http://localhost:8080/oauth` and our application's web server receives your request.
 
-	if (requestUrl.pathname !== '/oauth') {
-		response.end();
-		return;
-	}
+We create another route to handle the `/oauth` request. First, we fetch the `session_identifier` for the request and check if it matches the previously saved `io_session_identifier` cookie. In the case of multiple concurrent authorization processes this state also serves to match pairs of request and response.
+```php
+$query_session_identifier = $_GET['state'];
 
-	const queryParameter = querystring.parse(requestUrl.query);
-	const authorizationCode = queryParameter.code;
-	const receivedState = queryParameter.state;
-
-	if (receivedState !== sessionState) {
-		console.log('State in the callback does not match the state in the original request.');
-
-		response.end();
-		return;
-	}
-
-	// Get access token
-	const tokens = await retrieveTokens(authorizationCode);
-
-	// Get user information
-	const userInformation = await userInfo(tokens.accessToken);
-
-	// Refresh tokens
-	const refreshedTokens = await refreshTokens(tokens.refreshToken);
-
-	// Get user information using the refreshed accessToken
-	const userInformationWithRefreshedToken = await userInfo(refreshedTokens.accessToken);
-
-	response.end();
-};
+if ($query_session_identifier != $GLOBALS['io_session_identifier']) {
+	echo 'State in the callback does not match the state in the original request.';
+	return;
+}
 ```
-After checking if the pathname of the request url matches `/oauth` we extract the query parameters from the request received from the browser and verify that the state transmitted by the authorization server matches the one initially supplied. In the case of multiple concurrent authorization processes this state also serves to match pairs of request and response. We use the code obtained from the request to fetch a set of tokens from the authorization server and try them out by making an request to the `/authorization/userinfo` endpoint of the REST API. Lastly, we use the refresh token to obtain another set of tokens. Note that this invalidates the previous set.
+ We use the code obtained from the request to fetch a set of tokens from the authorization server and try them out by making an request to the `/authorization/userinfo` endpoint of the REST API. Lastly, we use the refresh token to obtain another set of tokens. Note that this invalidates the previous set.
 
-The `retrieveTokens` function fetches the tokens from the authorization server.
-```javascript
-const retrieveTokens = async authorizationCode => {
-	const requestBody = {
-		client_id: config.clientId,
-		client_secret: config.clientSecret,
-		redirect_uri: config.redirectUri,
-		code: authorizationCode,
-		grant_type: 'authorization_code',
-	};
+The `retrieveTokens` function fetches the tokens from the authorization server using a POST request via `php-curl`. The POST-Request must contain the `client_id`, `client_secret`, `redirect_uri`, `code` and `grant_type` as form data.
+```php
+function retrieveTokens()
+{
+    $params = [
+        "client_id" => $_ENV['clientId'],
+        "client_secret" => $_ENV['clientSecret'],
+        "redirect_uri" => $_ENV['redirectUri'],
+        "code" => $_GET['code'],
+        "grant_type" => 'authorization_code',
+    ];
 
-	const response = await axios.post(config.tokenUrl, querystring.stringify(requestBody), {
-		headers: {
-			'Content-Type': 'application/x-www-form-urlencoded',
-		},
-	});
+    $params_string = http_build_query($params);
+    $ch = curl_init();
 
-	return {
-		accessToken: response.data.access_token,
-		refreshToken: response.data.refresh_token,
-	};
-};
+    curl_setopt($ch, CURLOPT_URL, $_ENV['tokenUrl']);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $params_string);
+
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+
+    $result = curl_exec($ch);
+    $decoded_result = json_decode($result);
+    $access_token = $decoded_result->access_token;
+    $refresh_token = $decoded_result->refresh_token;
+
+
+    return [
+        'access_token' => $access_token,
+        'refresh_token' => $refresh_token,
+    ];
+}
 ```
-We use Axios to send a POST-Request to the authorization server to obtain a set of tokens (Access-Token and Refresh-Token). The POST-Request must contain the `client_id`, `client_secret`, `redirect_uri`, `code` and `grant_type` as form data.
+In some cases where the package might not be installed on your machine by default, you can install it using your preferred package manager:
+```shell
+sudo apt-get install php-curl
+```
 
 The `refreshTokens` function is very similar to the `retrieveTokens` function. It differs in that we set the `grant_type` to `refresh_token` to indicate that we want to refresh our token, and provide the `refresh_token` we got from the `retrieveTokens` function instead of the `code`.
-> ```javascript
+> ```php
 > ...
-> refresh_token: refreshToken,
-> grant_type: 'refresh_token',
+> "refresh_token" => $refresh_token,
+> "grant_type" => 'refresh_token',
 > ...
 > ```
 
 To see if authorization with the token works, we query the `/authorization/userinfo` endpoint of the REST API.
-```javascript
-const userInfo = async accessToken => {
-	const options = {
-		headers: {
-			Authorization: `Bearer ${accessToken}`,
-		},
-	};
-
-	const response = await axios.get(config.testApiEndpoint, options);
-
-	return response.data;
-};
+```php
+function userInfo($accessToken)
+{
+    $options = array(
+        'http' => array(
+            'header' => "Authorization: Bearer $accessToken\r\n",
+        ),
+    );
+    $context = stream_context_create($options);
+    return file_get_contents($_ENV['testApiEndpoint'], false, $context);
+}
 ```
 To use the token for authorization we set the `Authorization` header to `Bearer` followed by a space and the `accessToken` we obtained with the `retrieveTokens` or `refreshTokens` function.
 
@@ -204,7 +194,7 @@ Possible reasons are:
 ### "Error: listen EADDRINUSE: address already in use :::{port}"
 Possible reasons are:
 - another instance of the application is running
-- the port configured in the [config.json](./config.json) file is used by another application
+- the port configured in the [.env](./env) file and [execution command](#Execution) is used by another application
 
 
 ### "Error: listen EACCES: permission denied 0.0.0.0:{port}"
@@ -214,21 +204,19 @@ Possible reasons are:
 
 ### "invalid parameter: redirect_uri"
 Possible reasons are:
-- the redirect_uri in the [config.json](./config.json) is invalid or not set
+- the redirect_uri in the [.env](./env) is invalid or not set
 - the redirect_uri is not correctly configured the sipgate Web App (You can find more information about the configuration process in the [Setup OAuth with sipgate](#setup-oauth-with-sipgate) section)
 
 
 ### "client not found" or "invalid client_secret"
 Possible reasons are:
-- the client_id or client_secret configured in the [config.json](./config.json) is invalid. You can check them in the sipgate Web App. See [Setup OAuth with sipgate](#setup-oauth-with-sipgate)
+- the client_id or client_secret configured in the [.env](./.env) is invalid. You can check them in the sipgate Web App. See [Setup OAuth with sipgate](#setup-oauth-with-sipgate)
 
 
 ## Related
 + [OAuth RFC6749](https://tools.ietf.org/html/rfc6749)
 + [oauth.net](https://oauth.net/)
 + [auth0.com/docs/](https://auth0.com/docs/)
-+ [github.com/axios/axios](https://github.com/axios/axios)
-
 
 ## Contact Us
 Please let us know how we can improve this example. 
@@ -241,14 +229,12 @@ This project is licensed under **The Unlicense** (see [LICENSE file](./LICENSE))
 
 ## External Libraries
 This code uses the following external libraries
-
-+ axios:
++ PHP dotenv:
+  + Licensed under the [The BSD 3-Clause License](https://opensource.org/licenses/BSD-3-Clause)
+  + Website: https://github.com/vlucas/phpdotenv
++ SimplePHPRouter:
   + Licensed under the [MIT License](https://opensource.org/licenses/MIT)
-  + Website: https://github.com/axios/axios
-
-+ uuid:
-  + Licensed under the [MIT License](https://opensource.org/licenses/MIT)
-  + Website: https://github.com/kelektiv/node-uuid
+  + Website: https://github.com/steampixel/simplePHPRouter
 
 
 ----
