@@ -24,14 +24,14 @@ In order to authenticate against the sipgate REST API via OAuth you first need t
 
 You can create a client as follows:
 
-1. Navigate to [console.sipgate.com](https://console.sipgate.com/) and login with your sipgate account credentials.
+1. Navigate to [console.sipgate.com](https://console.sipgate.com/) and login with your sipgate account credentials
 2. Make sure you are in the **Clients** tab in the left side menu
 3. Click the **New client** button
 4. Fill out the **New client** dialog (Find information about the Privacy Policy URL and Terms of use URL [here](#privacy-policy-url-and-terms-of-use-url))
 5. The **Clients** list should contain your new client
 6. Select your client
 7. The entries **Id** and **Secret** are `YOUR_CLIENT_ID` and `YOUR_CLIENT_SECRET` required for the configuration of your application (see [Configuration](#configuration))
-8. Now you just have to add your `REDIRECT_URI` to your Client by clicking the **Add redirect uri** button and fill in the dialog. In our example we provide a server within the application itself so we use `http://localhost:{port}/oauth` (the default port is `8080`). 
+8. Now you just have to add your `REDIRECT_URI` to your Client by clicking the **Add redirect uri** button and fill in the dialog. In our example we provide a server within the application itself so we use `http://localhost:{port}/oauth` (the default port is `8080`).
 
 Now your Client is ready to use.
 
