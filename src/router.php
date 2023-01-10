@@ -9,10 +9,11 @@ $dotenv = Dotenv\Dotenv::createImmutable(__DIR__ . "/..");
 $dotenv->load();
 
 if(!isset($_COOKIE['io_session_identifier'])) {
-    setcookie('io_session_identifier', uniqid());
+    $io_session_identifier = uniqid();
+    setcookie('io_session_identifier', $io_session_identifier);
+} else {
+    $io_session_identifier = $_COOKIE['io_session_identifier'];
 }
-
-$io_session_identifier = $_COOKIE['io_session_identifier'];
 
 function retrieveTokens()
 {
@@ -124,21 +125,21 @@ Route::add('/oauth', function () {
     var_dump(retrievedTokens);
 
 
-        // Get user information
-        echo "<p>Getting User Information...</p>";
-        define("userInformations", userInfo($access_token));
-        echo userInformations;
+    // Get user information
+    echo "<p>Getting User Information...</p>";
+    define("userInformations", userInfo($access_token));
+    echo userInformations;
 
-        // Refresh tokens
-        echo "<p>Refreshing Tokens...</p>";
-        define("refreshTokens", refreshTokens(retrievedTokens['refresh_token']));
-        $refreshed_access_token = refreshTokens['access_token'];
-        echo "Received new Tokens:" . $refreshed_access_token;
+    // Refresh tokens
+    echo "<p>Refreshing Tokens...</p>";
+    define("refreshTokens", refreshTokens(retrievedTokens['refresh_token']));
+    $refreshed_access_token = refreshTokens['access_token'];
+    echo "Received new Tokens:" . $refreshed_access_token;
 
-        // Get user information using the refreshed accessToken
-        echo "<p>Getting user Information with refreshed Tokens...</p>";
-        define("userInformationWithRefreshedToken", userInfo($refreshed_access_token));
-        echo userInformationWithRefreshedToken;
+    // Get user information using the refreshed accessToken
+    echo "<p>Getting user Information with refreshed Tokens...</p>";
+    define("userInformationWithRefreshedToken", userInfo($refreshed_access_token));
+    echo userInformationWithRefreshedToken;
 
 });
 
